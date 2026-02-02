@@ -277,6 +277,7 @@
         <div class="buttons">
             <button class="btn-primary" onclick="resetGame()">New Game</button>
             <button class="btn-secondary" onclick="undoMove()">Undo</button>
+            <button class="btn-secondary" id="soundBtn" onclick="toggleSound()">🔊 Sound</button>
         </div>
 
         <div class="difficulty">
@@ -312,6 +313,85 @@
         let difficulty = 'medium';
         let humanPlayer = BLACK;
         let aiPlayer = WHITE;
+        let soundEnabled = true;
+
+        // Audio context for sound effects
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playStoneSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1);
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playWinSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+            notes.forEach((freq, i) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.15);
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+
+                oscillator.start(audioCtx.currentTime + i * 0.15);
+                oscillator.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+            });
+        }
+
+        function playLoseSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            const notes = [400, 350, 300, 250]; // Descending sad tones
+            notes.forEach((freq, i) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.2);
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.2);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.3);
+
+                oscillator.start(audioCtx.currentTime + i * 0.2);
+                oscillator.stop(audioCtx.currentTime + i * 0.2 + 0.3);
+            });
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊 Sound' : '🔇 Muted';
+        }
 
         function initBoard() {
             board = [];
@@ -351,7 +431,9 @@
                 return;
             }
 
+            initAudio(); // Initialize audio on first user interaction
             makeMove(row, col, humanPlayer);
+            playStoneSound();
 
             if (!gameOver) {
                 currentPlayer = aiPlayer;
@@ -375,6 +457,11 @@
                 highlightWinningCells(winningCells);
                 const winner = player === humanPlayer ? "You win!" : "AI wins!";
                 setMessage(winner, true);
+                if (player === humanPlayer) {
+                    playWinSound();
+                } else {
+                    playLoseSound();
+                }
                 return true;
             }
 
@@ -443,6 +530,7 @@
             const move = getBestMove();
             if (move) {
                 makeMove(move.row, move.col, aiPlayer);
+                playStoneSound();
 
                 if (!gameOver) {
                     currentPlayer = humanPlayer;
