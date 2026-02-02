@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wuziqi (五子棋) - Five in a Row</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            color: #eee;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+
+        .player-info {
+            padding: 10px 25px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transition: all 0.3s;
+        }
+
+        .player-info.active {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+
+        .player-info .stone {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .player-info .stone.black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .player-info .stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .board-container {
+            display: inline-block;
+            padding: 20px;
+            background: #dcb35c;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            grid-template-rows: repeat(9, 50px);
+            gap: 0;
+            position: relative;
+            background: #dcb35c;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #8b6914;
+        }
+
+        .cell::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #8b6914;
+        }
+
+        .cell:first-child::before,
+        .cell:nth-child(-n+9)::before {
+            left: 50%;
+        }
+
+        .cell:nth-child(9n)::before {
+            right: 50%;
+        }
+
+        .cell:nth-child(-n+9)::after {
+            top: 50%;
+        }
+
+        .cell:nth-last-child(-n+9)::after {
+            bottom: 50%;
+        }
+
+        .cell .stone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+
+        .cell .stone.black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+            box-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+        }
+
+        .cell .stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+            box-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .cell .stone.winning {
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { box-shadow: 0 0 5px 2px gold; }
+            to { box-shadow: 0 0 15px 5px gold; }
+        }
+
+        .cell:hover::before {
+            background: #6b4c0a;
+        }
+
+        .cell:hover::after {
+            background: #6b4c0a;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.2rem;
+            min-height: 52px;
+        }
+
+        .message.win {
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            animation: glow 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); }
+            to { box-shadow: 0 0 20px rgba(245, 175, 25, 0.8); }
+        }
+
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .difficulty {
+            margin-top: 15px;
+            color: #aaa;
+        }
+
+        .difficulty select, .color-select select {
+            padding: 8px 15px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: none;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .color-select {
+            margin-top: 10px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wuziqi 五子棋</h1>
+        <p class="subtitle">Five in a Row - Get 5 stones in a line to win!</p>
+
+        <div class="game-info">
+            <div class="player-info active" id="player-black">
+                <span class="stone black"></span>
+                <span>You (Black)</span>
+            </div>
+            <div class="player-info" id="player-white">
+                <span class="stone white"></span>
+                <span>AI (White)</span>
+            </div>
+        </div>
+
+        <div class="board-container">
+            <div class="board" id="board"></div>
+        </div>
+
+        <div class="message" id="message">Your turn - Black plays first</div>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="resetGame()">New Game</button>
+            <button class="btn-secondary" onclick="undoMove()">Undo</button>
+        </div>
+
+        <div class="difficulty">
+            <label>AI Difficulty:
+                <select id="difficulty" onchange="updateDifficulty()">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="color-select">
+            <label>Your Color:
+                <select id="playerColor" onchange="changePlayerColor()">
+                    <option value="black" selected>Black (First)</option>
+                    <option value="white">White (Second)</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 9;
+        const EMPTY = 0;
+        const BLACK = 1;
+        const WHITE = 2;
+
+        let board = [];
+        let currentPlayer = BLACK;
+        let gameOver = false;
+        let moveHistory = [];
+        let difficulty = 'medium';
+        let humanPlayer = BLACK;
+        let aiPlayer = WHITE;
+
+        function initBoard() {
+            board = [];
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                board[i] = [];
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    board[i][j] = EMPTY;
+                }
+            }
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.onclick = () => handleClick(i, j);
+
+                    if (board[i][j] !== EMPTY) {
+                        const stone = document.createElement('div');
+                        stone.className = `stone ${board[i][j] === BLACK ? 'black' : 'white'}`;
+                        cell.appendChild(stone);
+                    }
+
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleClick(row, col) {
+            if (gameOver || board[row][col] !== EMPTY || currentPlayer !== humanPlayer) {
+                return;
+            }
+
+            makeMove(row, col, humanPlayer);
+
+            if (!gameOver) {
+                currentPlayer = aiPlayer;
+                updatePlayerIndicator();
+                setMessage("AI is thinking...");
+
+                setTimeout(() => {
+                    aiMove();
+                }, 300);
+            }
+        }
+
+        function makeMove(row, col, player) {
+            board[row][col] = player;
+            moveHistory.push({ row, col, player });
+            renderBoard();
+
+            const winningCells = checkWin(row, col, player);
+            if (winningCells) {
+                gameOver = true;
+                highlightWinningCells(winningCells);
+                const winner = player === humanPlayer ? "You win!" : "AI wins!";
+                setMessage(winner, true);
+                return true;
+            }
+
+            if (isBoardFull()) {
+                gameOver = true;
+                setMessage("It's a draw!");
+                return true;
+            }
+
+            return false;
+        }
+
+        function checkWin(row, col, player) {
+            const directions = [
+                [[0, 1], [0, -1]],   // horizontal
+                [[1, 0], [-1, 0]],   // vertical
+                [[1, 1], [-1, -1]], // diagonal
+                [[1, -1], [-1, 1]]  // anti-diagonal
+            ];
+
+            for (const [dir1, dir2] of directions) {
+                let cells = [[row, col]];
+
+                for (const [dr, dc] of [dir1, dir2]) {
+                    let r = row + dr;
+                    let c = col + dc;
+
+                    while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+                        cells.push([r, c]);
+                        r += dr;
+                        c += dc;
+                    }
+                }
+
+                if (cells.length >= 5) {
+                    return cells;
+                }
+            }
+
+            return null;
+        }
+
+        function highlightWinningCells(cells) {
+            cells.forEach(([row, col]) => {
+                const index = row * BOARD_SIZE + col;
+                const cell = document.querySelectorAll('.cell')[index];
+                const stone = cell.querySelector('.stone');
+                if (stone) {
+                    stone.classList.add('winning');
+                }
+            });
+        }
+
+        function isBoardFull() {
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] === EMPTY) return false;
+                }
+            }
+            return true;
+        }
+
+        function aiMove() {
+            if (gameOver) return;
+
+            const move = getBestMove();
+            if (move) {
+                makeMove(move.row, move.col, aiPlayer);
+
+                if (!gameOver) {
+                    currentPlayer = humanPlayer;
+                    updatePlayerIndicator();
+                    setMessage("Your turn");
+                }
+            }
+        }
+
+        function getBestMove() {
+            // Check for immediate win
+            const winMove = findWinningMove(aiPlayer);
+            if (winMove) return winMove;
+
+            // Block opponent's winning move
+            const blockMove = findWinningMove(humanPlayer);
+            if (blockMove) return blockMove;
+
+            // Use evaluation-based search
+            let bestScore = -Infinity;
+            let bestMoves = [];
+            const depth = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3;
+
+            const candidates = getCandidateMoves();
+
+            for (const { row, col } of candidates) {
+                board[row][col] = aiPlayer;
+                const score = minimax(depth - 1, -Infinity, Infinity, false);
+                board[row][col] = EMPTY;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMoves = [{ row, col }];
+                } else if (score === bestScore) {
+                    bestMoves.push({ row, col });
+                }
+            }
+
+            if (bestMoves.length > 0) {
+                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            }
+
+            // Fallback: play center or random
+            if (board[4][4] === EMPTY) return { row: 4, col: 4 };
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] === EMPTY) return { row: i, col: j };
+                }
+            }
+
+            return null;
+        }
+
+        function getCandidateMoves() {
+            const candidates = [];
+            const checked = new Set();
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] !== EMPTY) {
+                        for (let di = -2; di <= 2; di++) {
+                            for (let dj = -2; dj <= 2; dj++) {
+                                const ni = i + di;
+                                const nj = j + dj;
+                                const key = `${ni},${nj}`;
+
+                                if (ni >= 0 && ni < BOARD_SIZE && nj >= 0 && nj < BOARD_SIZE
+                                    && board[ni][nj] === EMPTY && !checked.has(key)) {
+                                    checked.add(key);
+                                    candidates.push({ row: ni, col: nj, score: evaluatePosition(ni, nj) });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sort by position score and take top moves
+            candidates.sort((a, b) => b.score - a.score);
+            return candidates.slice(0, 15);
+        }
+
+        function evaluatePosition(row, col) {
+            let score = 0;
+
+            // Prefer center positions
+            const centerDist = Math.abs(row - 4) + Math.abs(col - 4);
+            score += (8 - centerDist) * 2;
+
+            // Evaluate potential for both players
+            board[row][col] = aiPlayer;
+            score += evaluatePoint(row, col, aiPlayer) * 1.1;
+            board[row][col] = humanPlayer;
+            score += evaluatePoint(row, col, humanPlayer);
+            board[row][col] = EMPTY;
+
+            return score;
+        }
+
+        function findWinningMove(player) {
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] === EMPTY) {
+                        board[i][j] = player;
+                        if (checkWin(i, j, player)) {
+                            board[i][j] = EMPTY;
+                            return { row: i, col: j };
+                        }
+                        board[i][j] = EMPTY;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function minimax(depth, alpha, beta, isMaximizing) {
+            if (depth === 0) {
+                return evaluateBoard();
+            }
+
+            const candidates = getCandidateMoves();
+            if (candidates.length === 0) return 0;
+
+            if (isMaximizing) {
+                let maxScore = -Infinity;
+                for (const { row, col } of candidates.slice(0, 8)) {
+                    board[row][col] = aiPlayer;
+                    if (checkWin(row, col, aiPlayer)) {
+                        board[row][col] = EMPTY;
+                        return 100000;
+                    }
+                    const score = minimax(depth - 1, alpha, beta, false);
+                    board[row][col] = EMPTY;
+                    maxScore = Math.max(maxScore, score);
+                    alpha = Math.max(alpha, score);
+                    if (beta <= alpha) break;
+                }
+                return maxScore;
+            } else {
+                let minScore = Infinity;
+                for (const { row, col } of candidates.slice(0, 8)) {
+                    board[row][col] = humanPlayer;
+                    if (checkWin(row, col, humanPlayer)) {
+                        board[row][col] = EMPTY;
+                        return -100000;
+                    }
+                    const score = minimax(depth - 1, alpha, beta, true);
+                    board[row][col] = EMPTY;
+                    minScore = Math.min(minScore, score);
+                    beta = Math.min(beta, score);
+                    if (beta <= alpha) break;
+                }
+                return minScore;
+            }
+        }
+
+        function evaluateBoard() {
+            let score = 0;
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] === aiPlayer) {
+                        score += evaluatePoint(i, j, aiPlayer);
+                    } else if (board[i][j] === humanPlayer) {
+                        score -= evaluatePoint(i, j, humanPlayer);
+                    }
+                }
+            }
+
+            return score;
+        }
+
+        function evaluatePoint(row, col, player) {
+            let score = 0;
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+
+            for (const [dr, dc] of directions) {
+                score += evaluateLine(row, col, dr, dc, player);
+            }
+
+            return score;
+        }
+
+        function evaluateLine(row, col, dr, dc, player) {
+            let count = 1;
+            let openEnds = 0;
+            let blocked = 0;
+
+            // Check positive direction
+            let r = row + dr;
+            let c = col + dc;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+                count++;
+                r += dr;
+                c += dc;
+            }
+            if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === EMPTY) {
+                openEnds++;
+            } else {
+                blocked++;
+            }
+
+            // Check negative direction
+            r = row - dr;
+            c = col - dc;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+                count++;
+                r -= dr;
+                c -= dc;
+            }
+            if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === EMPTY) {
+                openEnds++;
+            } else {
+                blocked++;
+            }
+
+            // Score based on count and open ends
+            if (count >= 5) return 100000;
+            if (count === 4) {
+                if (openEnds === 2) return 10000;
+                if (openEnds === 1) return 1000;
+            }
+            if (count === 3) {
+                if (openEnds === 2) return 500;
+                if (openEnds === 1) return 100;
+            }
+            if (count === 2) {
+                if (openEnds === 2) return 50;
+                if (openEnds === 1) return 10;
+            }
+
+            return count;
+        }
+
+        function undoMove() {
+            if (moveHistory.length < 2 || gameOver) return;
+
+            // Undo AI move
+            const aiMoveData = moveHistory.pop();
+            board[aiMoveData.row][aiMoveData.col] = EMPTY;
+
+            // Undo player move
+            const playerMove = moveHistory.pop();
+            board[playerMove.row][playerMove.col] = EMPTY;
+
+            currentPlayer = humanPlayer;
+            renderBoard();
+            updatePlayerIndicator();
+            setMessage("Your turn");
+        }
+
+        function resetGame() {
+            initBoard();
+            currentPlayer = BLACK;
+            gameOver = false;
+            moveHistory = [];
+            renderBoard();
+            updatePlayerIndicator();
+            updatePlayerLabels();
+
+            if (humanPlayer === BLACK) {
+                setMessage("Your turn - Black plays first");
+            } else {
+                setMessage("AI is thinking...");
+                setTimeout(() => {
+                    aiMove();
+                }, 300);
+            }
+        }
+
+        function updatePlayerIndicator() {
+            document.getElementById('player-black').classList.toggle('active', currentPlayer === BLACK);
+            document.getElementById('player-white').classList.toggle('active', currentPlayer === WHITE);
+        }
+
+        function setMessage(text, isWin = false) {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = text;
+            msgEl.classList.toggle('win', isWin);
+        }
+
+        function updateDifficulty() {
+            difficulty = document.getElementById('difficulty').value;
+        }
+
+        function changePlayerColor() {
+            const colorSelect = document.getElementById('playerColor').value;
+            if (colorSelect === 'black') {
+                humanPlayer = BLACK;
+                aiPlayer = WHITE;
+            } else {
+                humanPlayer = WHITE;
+                aiPlayer = BLACK;
+            }
+            resetGame();
+        }
+
+        function updatePlayerLabels() {
+            const blackLabel = document.querySelector('#player-black span:last-child');
+            const whiteLabel = document.querySelector('#player-white span:last-child');
+
+            if (humanPlayer === BLACK) {
+                blackLabel.textContent = 'You (Black)';
+                whiteLabel.textContent = 'AI (White)';
+            } else {
+                blackLabel.textContent = 'AI (Black)';
+                whiteLabel.textContent = 'You (White)';
+            }
+        }
+
+        // Initialize game
+        initBoard();
+        renderBoard();
+    </script>
+</body>
+</html>
